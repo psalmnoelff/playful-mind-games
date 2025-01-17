@@ -3,7 +3,7 @@ import { GameCard } from "@/components/GameCard";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const isLoggedIn = false; // TODO: Implement Google Auth
+  const isLoggedIn = true; // Changed to true to skip authentication
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
