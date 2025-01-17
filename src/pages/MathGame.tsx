@@ -20,7 +20,8 @@ const MathGame = () => {
 
   // Game state
   const gameState = useRef({
-    characterX: 50,
+    backgroundX: 0,
+    characterX: 200, // Fixed position
     characterY: 300,
     isRunning: true,
     animationFrame: 0,
@@ -94,6 +95,33 @@ const MathGame = () => {
     ctx.stroke();
   };
 
+  // Draw the background
+  const drawBackground = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    // Paper-like background
+    ctx.fillStyle = "#FEF7CD";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Grid lines for paper effect
+    ctx.strokeStyle = "#E5E5E5";
+    ctx.lineWidth = 0.5;
+
+    // Vertical lines that move
+    for (let i = gameState.current.backgroundX % 30; i < canvas.width; i += 30) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvas.height);
+      ctx.stroke();
+    }
+
+    // Horizontal lines (static)
+    for (let i = 0; i < canvas.height; i += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(canvas.width, i);
+      ctx.stroke();
+    }
+  };
+
   // Main game loop
   const gameLoop = () => {
     const canvas = canvasRef.current;
@@ -101,25 +129,16 @@ const MathGame = () => {
     
     if (!canvas || !ctx) return;
 
-    // Clear canvas
-    ctx.fillStyle = "#FEF7CD"; // Paper-like background
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw grid lines for paper effect
-    ctx.strokeStyle = "#E5E5E5";
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < canvas.width; i += 30) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, canvas.height);
-      ctx.stroke();
-    }
-
-    // Draw character
+    // Move background
     if (!isPaused) {
-      gameState.current.characterX += 2;
+      gameState.current.backgroundX -= 2;
       gameState.current.animationFrame++;
     }
+
+    // Draw background
+    drawBackground(ctx, canvas);
+
+    // Draw character at fixed position
     drawCharacter(ctx, gameState.current.characterX, gameState.current.characterY);
 
     // Draw current problem if exists
@@ -204,8 +223,18 @@ const MathGame = () => {
       startNewProblem();
     }, 2000);
 
-    return () => clearTimeout(timeout);
-  }, []);
+    // Set up problem interval
+    const problemInterval = setInterval(() => {
+      if (!isPaused && !gameOver) {
+        startNewProblem();
+      }
+    }, 5000);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(problemInterval);
+    };
+  }, [isPaused, gameOver]);
 
   // Timer effect
   useEffect(() => {
