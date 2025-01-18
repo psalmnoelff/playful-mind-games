@@ -2,13 +2,26 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-
-const GRID_SIZE = 40; // Increased size of each cell
-const GRID_COLS = 10; // Reduced columns
-const GRID_ROWS = 8;  // Reduced rows
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Direction = "up" | "down" | "left" | "right";
 type Position = { x: number; y: number };
+type Difficulty = "easy" | "medium" | "hard";
+
+const CELL_SIZE = 32; // Fixed cell size
+
+const getDifficultySettings = (difficulty: Difficulty) => {
+  switch (difficulty) {
+    case "easy":
+      return { cols: 10, rows: 10 };
+    case "medium":
+      return { cols: 15, rows: 15 };
+    case "hard":
+      return { cols: 30, rows: 30 };
+    default:
+      return { cols: 10, rows: 10 };
+  }
+};
 
 const LogicGame = () => {
   const navigate = useNavigate();
@@ -17,6 +30,8 @@ const LogicGame = () => {
   const [gameOver, setGameOver] = useState(false);
   const [instructions, setInstructions] = useState<Direction[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const { cols: GRID_COLS, rows: GRID_ROWS } = getDifficultySettings(difficulty);
 
   // Game state
   const gameState = useRef({
@@ -34,16 +49,16 @@ const LogicGame = () => {
     // Draw vertical lines
     for (let x = 0; x <= GRID_COLS; x++) {
       ctx.beginPath();
-      ctx.moveTo(x * GRID_SIZE, 0);
-      ctx.lineTo(x * GRID_SIZE, GRID_ROWS * GRID_SIZE);
+      ctx.moveTo(x * CELL_SIZE, 0);
+      ctx.lineTo(x * CELL_SIZE, GRID_ROWS * CELL_SIZE);
       ctx.stroke();
     }
 
     // Draw horizontal lines
     for (let y = 0; y <= GRID_ROWS; y++) {
       ctx.beginPath();
-      ctx.moveTo(0, y * GRID_SIZE);
-      ctx.lineTo(GRID_COLS * GRID_SIZE, y * GRID_SIZE);
+      ctx.moveTo(0, y * CELL_SIZE);
+      ctx.lineTo(GRID_COLS * CELL_SIZE, y * CELL_SIZE);
       ctx.stroke();
     }
   };
@@ -52,7 +67,7 @@ const LogicGame = () => {
   const drawGame = (ctx: CanvasRenderingContext2D) => {
     // Clear canvas with a map-like background
     ctx.fillStyle = "#F2FCE2";
-    ctx.fillRect(0, 0, GRID_COLS * GRID_SIZE, GRID_ROWS * GRID_SIZE);
+    ctx.fillRect(0, 0, GRID_COLS * CELL_SIZE, GRID_ROWS * CELL_SIZE);
 
     // Draw grid
     drawGrid(ctx);
@@ -61,10 +76,10 @@ const LogicGame = () => {
     ctx.fillStyle = "#4A5568";
     gameState.current.walls.forEach(wall => {
       ctx.fillRect(
-        wall.x * GRID_SIZE,
-        wall.y * GRID_SIZE,
-        GRID_SIZE,
-        GRID_SIZE
+        wall.x * CELL_SIZE,
+        wall.y * CELL_SIZE,
+        CELL_SIZE,
+        CELL_SIZE
       );
     });
 
@@ -72,9 +87,9 @@ const LogicGame = () => {
     ctx.fillStyle = "#8B5CF6";
     ctx.beginPath();
     ctx.arc(
-      gameState.current.startPos.x * GRID_SIZE + GRID_SIZE / 2,
-      gameState.current.startPos.y * GRID_SIZE + GRID_SIZE / 2,
-      GRID_SIZE / 3,
+      gameState.current.startPos.x * CELL_SIZE + CELL_SIZE / 2,
+      gameState.current.startPos.y * CELL_SIZE + CELL_SIZE / 2,
+      CELL_SIZE / 3,
       0,
       Math.PI * 2
     );
@@ -84,9 +99,9 @@ const LogicGame = () => {
     ctx.fillStyle = "#D946EF";
     ctx.beginPath();
     ctx.arc(
-      gameState.current.endPos.x * GRID_SIZE + GRID_SIZE / 2,
-      gameState.current.endPos.y * GRID_SIZE + GRID_SIZE / 2,
-      GRID_SIZE / 3,
+      gameState.current.endPos.x * CELL_SIZE + CELL_SIZE / 2,
+      gameState.current.endPos.y * CELL_SIZE + CELL_SIZE / 2,
+      CELL_SIZE / 3,
       0,
       Math.PI * 2
     );
@@ -160,13 +175,13 @@ const LogicGame = () => {
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(
-        path[0].x * GRID_SIZE + GRID_SIZE / 2,
-        path[0].y * GRID_SIZE + GRID_SIZE / 2
+        path[0].x * CELL_SIZE + CELL_SIZE / 2,
+        path[0].y * CELL_SIZE + CELL_SIZE / 2
       );
       for (let i = 1; i < path.length; i++) {
         ctx.lineTo(
-          path[i].x * GRID_SIZE + GRID_SIZE / 2,
-          path[i].y * GRID_SIZE + GRID_SIZE / 2
+          path[i].x * CELL_SIZE + CELL_SIZE / 2,
+          path[i].y * CELL_SIZE + CELL_SIZE / 2
         );
       }
       ctx.stroke();
@@ -218,15 +233,16 @@ const LogicGame = () => {
       y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
     };
 
-    // Generate random walls based on level
-    const numWalls = Math.min(2 + gameState.current.currentLevel, 8);
+    // Generate random walls based on level and difficulty
+    const baseWalls = difficulty === "easy" ? 2 : difficulty === "medium" ? 4 : 6;
+    const numWalls = Math.min(baseWalls + gameState.current.currentLevel, GRID_COLS);
+    
     for (let i = 0; i < numWalls; i++) {
       const wall = {
         x: Math.floor(Math.random() * (GRID_COLS - 2)) + 1,
         y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
       };
 
-      // Make sure walls don't overlap with start or end positions
       if (
         (wall.x !== gameState.current.startPos.x ||
           wall.y !== gameState.current.startPos.y) &&
@@ -255,12 +271,12 @@ const LogicGame = () => {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    // Set canvas size
-    canvas.width = GRID_COLS * GRID_SIZE;
-    canvas.height = GRID_ROWS * GRID_SIZE;
+    // Set canvas size based on difficulty
+    canvas.width = GRID_COLS * CELL_SIZE;
+    canvas.height = GRID_ROWS * CELL_SIZE;
 
     generateNewLevel();
-  }, []);
+  }, [difficulty]); // Re-initialize when difficulty changes
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-8">
@@ -282,6 +298,26 @@ const LogicGame = () => {
         </div>
 
         <div className="bg-white rounded-lg p-6 shadow-lg">
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Difficulty:</label>
+            <ToggleGroup type="single" value={difficulty} onValueChange={(value: Difficulty) => {
+              if (value) {
+                setDifficulty(value);
+                resetGame();
+              }
+            }}>
+              <ToggleGroupItem value="easy" aria-label="Easy">
+                Easy
+              </ToggleGroupItem>
+              <ToggleGroupItem value="medium" aria-label="Medium">
+                Medium
+              </ToggleGroupItem>
+              <ToggleGroupItem value="hard" aria-label="Hard">
+                Hard
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
           <canvas
             ref={canvasRef}
             className="border border-gray-200 rounded-lg mb-6"
