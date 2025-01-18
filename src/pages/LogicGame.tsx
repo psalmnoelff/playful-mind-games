@@ -1,21 +1,283 @@
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+
+const GRID_SIZE = 32; // Size of each grid cell
+const GRID_COLS = 15;
+const GRID_ROWS = 10;
+
+type Direction = "up" | "down" | "left" | "right";
+type Position = { x: number; y: number };
 
 const LogicGame = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [score, setScore] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
+  const [instructions, setInstructions] = useState<Direction[]>([]);
+  const [isExecuting, setIsExecuting] = useState(false);
+
+  // Game state
+  const gameState = useRef({
+    startPos: { x: 1, y: Math.floor(GRID_ROWS / 2) },
+    endPos: { x: GRID_COLS - 2, y: Math.floor(GRID_ROWS / 2) },
+    currentLevel: 1,
+  });
+
+  // Draw the map grid
+  const drawGrid = (ctx: CanvasRenderingContext2D) => {
+    ctx.strokeStyle = "#D3E4FD";
+    ctx.lineWidth = 1;
+
+    // Draw vertical lines
+    for (let x = 0; x <= GRID_COLS; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * GRID_SIZE, 0);
+      ctx.lineTo(x * GRID_SIZE, GRID_ROWS * GRID_SIZE);
+      ctx.stroke();
+    }
+
+    // Draw horizontal lines
+    for (let y = 0; y <= GRID_ROWS; y++) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * GRID_SIZE);
+      ctx.lineTo(GRID_COLS * GRID_SIZE, y * GRID_SIZE);
+      ctx.stroke();
+    }
+  };
+
+  // Draw the game elements
+  const drawGame = (ctx: CanvasRenderingContext2D) => {
+    // Clear canvas with a map-like background
+    ctx.fillStyle = "#F2FCE2";
+    ctx.fillRect(0, 0, GRID_COLS * GRID_SIZE, GRID_ROWS * GRID_SIZE);
+
+    // Draw grid
+    drawGrid(ctx);
+
+    // Draw start position
+    ctx.fillStyle = "#8B5CF6";
+    ctx.beginPath();
+    ctx.arc(
+      gameState.current.startPos.x * GRID_SIZE + GRID_SIZE / 2,
+      gameState.current.startPos.y * GRID_SIZE + GRID_SIZE / 2,
+      GRID_SIZE / 3,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    // Draw end position
+    ctx.fillStyle = "#D946EF";
+    ctx.beginPath();
+    ctx.arc(
+      gameState.current.endPos.x * GRID_SIZE + GRID_SIZE / 2,
+      gameState.current.endPos.y * GRID_SIZE + GRID_SIZE / 2,
+      GRID_SIZE / 3,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  };
+
+  // Execute the instructions
+  const executeInstructions = async () => {
+    if (isExecuting) return;
+    setIsExecuting(true);
+
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    let currentPos: Position = { ...gameState.current.startPos };
+    let path: Position[] = [{ ...currentPos }];
+    let success = true;
+
+    // Draw the path
+    for (const instruction of instructions) {
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Animation delay
+
+      // Update position based on instruction
+      switch (instruction) {
+        case "up":
+          currentPos.y--;
+          break;
+        case "down":
+          currentPos.y++;
+          break;
+        case "left":
+          currentPos.x--;
+          break;
+        case "right":
+          currentPos.x++;
+          break;
+      }
+
+      // Check for collisions
+      if (
+        currentPos.x < 0 ||
+        currentPos.x >= GRID_COLS ||
+        currentPos.y < 0 ||
+        currentPos.y >= GRID_ROWS
+      ) {
+        success = false;
+        break;
+      }
+
+      path.push({ ...currentPos });
+
+      // Redraw everything
+      drawGame(ctx);
+
+      // Draw path
+      ctx.strokeStyle = "#33C3F0";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(
+        path[0].x * GRID_SIZE + GRID_SIZE / 2,
+        path[0].y * GRID_SIZE + GRID_SIZE / 2
+      );
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(
+          path[i].x * GRID_SIZE + GRID_SIZE / 2,
+          path[i].y * GRID_SIZE + GRID_SIZE / 2
+        );
+      }
+      ctx.stroke();
+    }
+
+    // Check if reached the end
+    if (
+      currentPos.x === gameState.current.endPos.x &&
+      currentPos.y === gameState.current.endPos.y
+    ) {
+      toast({
+        title: "Success!",
+        description: "Path completed successfully!",
+      });
+      setScore((prev) => prev + 100 * gameState.current.currentLevel);
+      gameState.current.currentLevel++;
+      generateNewLevel();
+    } else {
+      toast({
+        title: "Game Over",
+        description: "Wrong path! Try again.",
+        variant: "destructive",
+      });
+      setGameOver(true);
+    }
+
+    setIsExecuting(false);
+    setInstructions([]);
+  };
+
+  // Generate a new level
+  const generateNewLevel = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    // Randomize end position for variety
+    gameState.current.endPos = {
+      x: GRID_COLS - 2,
+      y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
+    };
+
+    drawGame(ctx);
+  };
+
+  // Reset game
+  const resetGame = () => {
+    setGameOver(false);
+    setScore(0);
+    setInstructions([]);
+    gameState.current.currentLevel = 1;
+    generateNewLevel();
+  };
+
+  // Initialize game
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    // Set canvas size
+    canvas.width = GRID_COLS * GRID_SIZE;
+    canvas.height = GRID_ROWS * GRID_SIZE;
+
+    drawGame(ctx);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
-      <div className="container py-12">
-        <Link to="/" className="text-gray-600 hover:text-gray-900 mb-8 block">
-          ← Back to Home
-        </Link>
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-bold mb-8 text-center text-game-logic">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-game-logic">
             Logic Programming
           </h1>
-          <div className="bg-white rounded-lg p-8 shadow-lg">
-            <div className="text-center text-2xl">
-              Coming soon: Grid-based programming game!
+          <div className="text-xl font-semibold">Score: {score}</div>
+        </div>
+
+        <div className="bg-white rounded-lg p-6 shadow-lg">
+          <canvas
+            ref={canvasRef}
+            className="border border-gray-200 rounded-lg mb-6"
+          />
+
+          {!gameOver ? (
+            <div className="space-y-4">
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  onClick={() => setInstructions([...instructions, "up"])}
+                  disabled={isExecuting}
+                >
+                  Up ↑
+                </Button>
+                <Button
+                  onClick={() => setInstructions([...instructions, "down"])}
+                  disabled={isExecuting}
+                >
+                  Down ↓
+                </Button>
+                <Button
+                  onClick={() => setInstructions([...instructions, "left"])}
+                  disabled={isExecuting}
+                >
+                  Left ←
+                </Button>
+                <Button
+                  onClick={() => setInstructions([...instructions, "right"])}
+                  disabled={isExecuting}
+                >
+                  Right →
+                </Button>
+                <Button
+                  onClick={() => setInstructions([])}
+                  variant="outline"
+                  disabled={isExecuting}
+                >
+                  Clear
+                </Button>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div className="text-gray-600">
+                  Instructions: {instructions.join(" → ")}
+                </div>
+                <Button
+                  onClick={executeInstructions}
+                  disabled={isExecuting || instructions.length === 0}
+                  className="bg-game-logic hover:bg-game-logic/90"
+                >
+                  Run Program
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-xl mb-4">Game Over! Final Score: {score}</p>
+              <Button onClick={resetGame}>Play Again</Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
