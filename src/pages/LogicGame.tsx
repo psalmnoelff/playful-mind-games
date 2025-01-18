@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
-const GRID_SIZE = 32; // Size of each grid cell
+const GRID_SIZE = 32;
 const GRID_COLS = 15;
 const GRID_ROWS = 10;
 
@@ -10,6 +11,7 @@ type Direction = "up" | "down" | "left" | "right";
 type Position = { x: number; y: number };
 
 const LogicGame = () => {
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
@@ -211,9 +213,18 @@ const LogicGame = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-game-logic">
-            Logic Programming
-          </h1>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2"
+            >
+              ← Back to Menu
+            </Button>
+            <h1 className="text-3xl font-bold text-game-logic">
+              Logic Programming
+            </h1>
+          </div>
           <div className="text-xl font-semibold">Score: {score}</div>
         </div>
 
