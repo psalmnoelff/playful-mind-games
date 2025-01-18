@@ -22,6 +22,7 @@ const LogicGame = () => {
   const gameState = useRef({
     startPos: { x: 1, y: Math.floor(GRID_ROWS / 2) },
     endPos: { x: GRID_COLS - 2, y: Math.floor(GRID_ROWS / 2) },
+    walls: [] as Position[],
     currentLevel: 1,
   });
 
@@ -56,6 +57,17 @@ const LogicGame = () => {
     // Draw grid
     drawGrid(ctx);
 
+    // Draw walls
+    ctx.fillStyle = "#4A5568";
+    gameState.current.walls.forEach(wall => {
+      ctx.fillRect(
+        wall.x * GRID_SIZE,
+        wall.y * GRID_SIZE,
+        GRID_SIZE,
+        GRID_SIZE
+      );
+    });
+
     // Draw start position
     ctx.fillStyle = "#8B5CF6";
     ctx.beginPath();
@@ -79,6 +91,13 @@ const LogicGame = () => {
       Math.PI * 2
     );
     ctx.fill();
+  };
+
+  // Check if position collides with a wall
+  const checkWallCollision = (pos: Position) => {
+    return gameState.current.walls.some(wall => 
+      wall.x === pos.x && wall.y === pos.y
+    );
   };
 
   // Execute the instructions
@@ -114,14 +133,20 @@ const LogicGame = () => {
           break;
       }
 
-      // Check for collisions
+      // Check for collisions with walls and boundaries
       if (
         currentPos.x < 0 ||
         currentPos.x >= GRID_COLS ||
         currentPos.y < 0 ||
-        currentPos.y >= GRID_ROWS
+        currentPos.y >= GRID_ROWS ||
+        checkWallCollision(currentPos)
       ) {
         success = false;
+        toast({
+          title: "Game Over",
+          description: "You hit a wall! Try again.",
+          variant: "destructive",
+        });
         break;
       }
 
@@ -159,7 +184,7 @@ const LogicGame = () => {
       setScore((prev) => prev + 100 * gameState.current.currentLevel);
       gameState.current.currentLevel++;
       generateNewLevel();
-    } else {
+    } else if (success) {
       toast({
         title: "Game Over",
         description: "Wrong path! Try again.",
@@ -172,11 +197,33 @@ const LogicGame = () => {
     setInstructions([]);
   };
 
-  // Generate a new level
+  // Generate a new level with walls
   const generateNewLevel = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+
+    // Clear existing walls
+    gameState.current.walls = [];
+
+    // Generate random walls based on level
+    const numWalls = Math.min(3 + gameState.current.currentLevel, 10);
+    for (let i = 0; i < numWalls; i++) {
+      const wall = {
+        x: Math.floor(Math.random() * (GRID_COLS - 2)) + 1,
+        y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
+      };
+
+      // Make sure walls don't overlap with start or end positions
+      if (
+        (wall.x !== gameState.current.startPos.x ||
+          wall.y !== gameState.current.startPos.y) &&
+        (wall.x !== gameState.current.endPos.x ||
+          wall.y !== gameState.current.endPos.y)
+      ) {
+        gameState.current.walls.push(wall);
+      }
+    }
 
     // Randomize end position for variety
     gameState.current.endPos = {
@@ -206,7 +253,7 @@ const LogicGame = () => {
     canvas.width = GRID_COLS * GRID_SIZE;
     canvas.height = GRID_ROWS * GRID_SIZE;
 
-    drawGame(ctx);
+    generateNewLevel();
   }, []);
 
   return (
