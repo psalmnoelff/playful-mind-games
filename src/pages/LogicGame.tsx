@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-const GRID_SIZE = 32;
-const GRID_COLS = 15;
-const GRID_ROWS = 10;
+const GRID_SIZE = 40; // Increased size of each cell
+const GRID_COLS = 10; // Reduced columns
+const GRID_ROWS = 8;  // Reduced rows
 
 type Direction = "up" | "down" | "left" | "right";
 type Position = { x: number; y: number };
@@ -20,8 +20,8 @@ const LogicGame = () => {
 
   // Game state
   const gameState = useRef({
-    startPos: { x: 1, y: Math.floor(GRID_ROWS / 2) },
-    endPos: { x: GRID_COLS - 2, y: Math.floor(GRID_ROWS / 2) },
+    startPos: { x: 0, y: 0 },
+    endPos: { x: 0, y: 0 },
     walls: [] as Position[],
     currentLevel: 1,
   });
@@ -197,7 +197,7 @@ const LogicGame = () => {
     setInstructions([]);
   };
 
-  // Generate a new level with walls
+  // Generate a new level with walls and random start/end positions
   const generateNewLevel = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -206,8 +206,20 @@ const LogicGame = () => {
     // Clear existing walls
     gameState.current.walls = [];
 
+    // Generate random start position (on the left side)
+    gameState.current.startPos = {
+      x: 0,
+      y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
+    };
+
+    // Generate random end position (on the right side)
+    gameState.current.endPos = {
+      x: GRID_COLS - 1,
+      y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
+    };
+
     // Generate random walls based on level
-    const numWalls = Math.min(3 + gameState.current.currentLevel, 10);
+    const numWalls = Math.min(2 + gameState.current.currentLevel, 8);
     for (let i = 0; i < numWalls; i++) {
       const wall = {
         x: Math.floor(Math.random() * (GRID_COLS - 2)) + 1,
@@ -224,12 +236,6 @@ const LogicGame = () => {
         gameState.current.walls.push(wall);
       }
     }
-
-    // Randomize end position for variety
-    gameState.current.endPos = {
-      x: GRID_COLS - 2,
-      y: Math.floor(Math.random() * (GRID_ROWS - 2)) + 1,
-    };
 
     drawGame(ctx);
   };
